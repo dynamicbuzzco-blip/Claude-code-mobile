@@ -464,6 +464,36 @@ export function createApp(store, options = {}) {
       return json(200, { ok: true });
     }
 
+    // Bulk create (used by the sample-data loader): { items: { collection: [obj, ...] } }.
+    // Client-supplied UUID ids are kept so records can reference each other.
+    if (parts[0] === 'bulk' && method === 'POST') {
+      const b = await readBody(request);
+      const groups = b && typeof b.items === 'object' ? b.items : {};
+      const total = Object.values(groups).reduce((a, g) => a + (Array.isArray(g) ? g.length : 0), 0);
+      if (total > 5000) return fail(400, 'Too many items');
+      const now = new Date().toISOString();
+      const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      let created = 0;
+      for (const name of COLLECTIONS) {
+        for (const raw of Array.isArray(groups[name]) ? groups[name] : []) {
+          if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+          const id = UUID.test(raw.id || '') && !db[name].some((x) => x.id === raw.id) ? raw.id : uid();
+          const item = { ...raw, id, createdAt: now, updatedAt: now };
+          if (name === 'invoices') {
+            item.kind = item.kind === 'quote' ? 'quote' : 'invoice';
+            item.number = nextDocNumber(item.kind);
+            item.publicToken = token();
+            item.status = item.status || 'draft';
+            item.payments = item.payments || [];
+          }
+          db[name].push(item);
+          created++;
+        }
+      }
+      save();
+      return json(200, { created });
+    }
+
     if (parts[0] === 'c' && COLLECTIONS.includes(parts[1])) {
       const name = parts[1];
       const list = db[name];

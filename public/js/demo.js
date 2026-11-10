@@ -1,9 +1,21 @@
 // Sample data generator so new users can explore a realistic, populated account.
-import { list, saveItem, today, addDays, DEFAULT_CHECKLIST, eventHours } from './core.js';
+import { list, today, addDays, DEFAULT_CHECKLIST, eventHours, api, loadAll } from './core.js';
+
+// Records are built locally (with client-generated ids so they can reference each
+// other) and sent to the server in a single bulk request.
+let buffer = null;
+function saveItem(col, item) {
+  const arr = (buffer[col] = buffer[col] || []);
+  if (item.id) { const i = arr.findIndex((x) => x.id === item.id); if (i >= 0) { arr[i] = { ...item }; return arr[i]; } }
+  const rec = { ...item, id: item.id || crypto.randomUUID() };
+  arr.push(rec);
+  return rec;
+}
 import { itemsForEvent, blankDoc } from './views/invoices.js';
 import { defaultShiftWindow } from './views/schedule.js';
 
 export async function seedDemo() {
+  buffer = {};
   const t = today();
   const pkg = (name) => list('packages').find((p) => p.name === name)?.id || '';
 
@@ -139,4 +151,7 @@ export async function seedDemo() {
   for (const [title, evIdx, due, priority, sIdx] of tasks) await saveItem('tasks', { title, eventId: evIdx !== null ? events[evIdx].ev.id : '', due: addDays(t, due), priority, assigneeStaffId: sIdx !== null ? staff[sIdx].id : '', done: false });
 
   await saveItem('activities', { type: 'system', text: 'Sample data loaded — explore away!' });
+  await api('POST', '/bulk', { items: buffer });
+  buffer = null;
+  await loadAll();
 }

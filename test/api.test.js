@@ -149,6 +149,16 @@ test('staff cannot create managers; owner can', async () => {
   assert.equal(m.body.role, 'manager');
 });
 
+test('bulk create keeps client ids and numbers invoices', async () => {
+  const cid = crypto.randomUUID();
+  const r = await owner('POST', '/bulk', { items: { clients: [{ id: cid, name: 'Bulk Client' }], invoices: [{ kind: 'quote', clientId: cid, items: [] }] } });
+  assert.equal(r.body.created, 2);
+  const invs = (await owner('GET', '/c/invoices')).body.filter((i) => i.clientId === cid);
+  assert.match(invs[0].number, /^Q-/);
+  assert.ok(invs[0].publicToken);
+  assert.equal((await staffUser('POST', '/bulk', { items: {} })).status, 403);
+});
+
 test('deleting an event cascades its shifts', async () => {
   await owner('DELETE', '/c/events/' + eventId);
   const shifts = (await owner('GET', '/c/shifts')).body;

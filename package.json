@@ -1,0 +1,13 @@
+{
+  "name": "barops",
+  "version": "1.0.0",
+  "description": "All-in-one CRM, invoicing, staff scheduling, calendar and business management for mobile bartending & beverage catering companies.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Quote / Invoice</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="public">
+  <main class="public-wrap doc-wrap" id="root"><div class="card">Loading…</div></main>
+  <script>
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const tok = location.hash.slice(1);
+    const root = document.getElementById('root');
+    let cur = 'USD';
+    const money = (n) => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: cur }).format(Number(n) || 0); } catch { return '$' + (Number(n) || 0).toFixed(2); } };
+    const fdate = (s) => s ? new Date(s.slice(0, 10) + 'T00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+    const ftime = (t) => { if (!t) return ''; const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}${m ? ':' + String(m).padStart(2, '0') : ''}${h >= 12 ? 'pm' : 'am'}`; };
+
+    function draw(d) {
+      const { invoice: i, client: c, event: e, business: b } = d;
+      cur = b.currency || 'USD';
+      const t = i.totals;
+      const isQuote = i.kind === 'quote';
+      const status = isQuote ? (i.acceptedAt ? 'accepted' : 'awaiting approval') : (t.balance <= 0.004 && t.total > 0 ? 'paid' : t.paid > 0 ? 'partially paid' : 'due');
+      document.title = `${isQuote ? 'Quote' : 'Invoice'} ${i.number} · ${b.businessName}`;
+      root.innerHTML = `
+        <div class="doc-actions no-print"><button class="btn" onclick="window.print()">Print / Save PDF</button></div>
+        <article class="card doc">
+          <header class="doc-head">
+            <div><div class="brand-mark sm">🍸</div><h1>${esc(b.businessName)}</h1><p class="muted small">${[b.tagline, b.address, [b.phone, b.email, b.website].filter(Boolean).join(' · ')].filter(Boolean).map(esc).join('<br>')}</p></div>
+            <div class="doc-meta"><h2>${isQuote ? 'QUOTE' : 'INVOICE'}</h2><p><b>${esc(i.number)}</b><br>Issued ${fdate(i.issueDate)}${!isQuote && i.dueDate ? `<br>Due ${fdate(i.dueDate)}` : ''}</p><span class="badge badge-${status.replace(/\s+/g, '-')}">${esc(status)}</span></div>
+          </header>
+          <div class="doc-parties">
+            <div><small class="muted">BILL TO</small><p>${[c?.name && `<b>${esc(c.name)}</b>`, c?.company, c?.address, c?.email, c?.phone].filter(Boolean).map((x, n) => n ? esc(x) : x).join('<br>')}</p></div>
+            ${e ? `<div><small class="muted">EVENT</small><p><b>${esc(e.title)}</b><br>${fdate(e.date)} · ${ftime(e.startTime)}–${ftime(e.endTime)}<br>${esc(e.venue || '')}${e.address ? '<br>' + esc(e.address) : ''}${e.guestCount ? `<br>${e.guestCount} guests` : ''}</p></div>` : ''}
+          </div>
+          <table class="items doc-items"><thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+            <tbody>${(i.items || []).map((it) => `<tr><td>${esc(it.desc)}</td><td class="num">${esc(it.qty)}</td><td class="num">${money(it.rate)}</td><td class="num">${money((it.qty || 0) * (it.rate || 0))}</td></tr>`).join('')}</tbody></table>
+          <div class="totals">
+            <div><span>Subtotal</span><b>${money(t.subtotal)}</b></div>
+            ${t.discount ? `<div><span>Discount</span><b>−${money(t.discount)}</b></div>` : ''}
+            ${t.service ? `<div><span>Service charge (${i.serviceChargePct}%)</span><b>${money(t.service)}</b></div>` : ''}
+            ${t.tax ? `<div><span>Tax (${i.taxRate}%)</span><b>${money(t.tax)}</b></div>` : ''}
+            <div class="grand"><span>Total</span><b>${money(t.total)}</b></div>
+            ${i.depositPct ? `<div><span>Deposit to reserve (${i.depositPct}%)</span><b>${money(t.total * i.depositPct / 100)}</b></div>` : ''}
+            ${!isQuote ? `${(i.payments || []).map((p) => `<div class="muted"><span>Payment ${fdate(p.date)} (${esc(p.method || '')})</span><b>−${money(p.amount)}</b></div>`).join('')}<div class="grand"><span>Balance due</span><b>${money(t.balance)}</b></div>` : ''}
+          </div>
+          ${i.notes ? `<h4>Notes</h4><p class="pre">${esc(i.notes)}</p>` : ''}
+          ${!isQuote && t.balance > 0.004 && b.paymentLinkUrl ? `<p class="no-print"><a class="btn btn-primary" href="${esc(b.paymentLinkUrl)}" target="_blank" rel="noopener">Pay ${money(t.balance)} now</a></p>` : ''}
+          ${b.paymentInstructions ? `<h4>How to pay</h4><p class="pre">${esc(b.paymentInstructions)}</p>` : ''}
+          ${b.terms ? `<h4>Terms</h4><p class="pre small">${esc(b.terms)}</p>` : ''}
+          ${isQuote ? (i.acceptedAt
+            ? `<div class="alert alert-ok">✓ Accepted and signed by <b>${esc(i.acceptedBy)}</b> on ${new Date(i.acceptedAt).toLocaleString()}</div>`
+            : `<form class="sign no-print" id="sign"><h3>Accept this quote</h3><p class="small muted">By typing your full name you agree to the quote and terms above. A deposit invoice will follow.</p>
+                <div class="copy-row"><input name="signature" required placeholder="Type your full name" autocomplete="name"><button class="btn btn-primary">Accept & sign</button></div><p class="error" id="serr"></p></form>`) : ''}
+        </article>`;
+      const sign = document.getElementById('sign');
+      if (sign) sign.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const res = await fetch(`/api/public/doc/${encodeURIComponent(tok)}/accept`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signature: sign.signature.value }) });
+        const j = await res.json();
+        if (!res.ok) { document.getElementById('serr').textContent = j.error; return; }
+        draw(j);
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+    }
+
+    fetch('/api/public/doc/' + encodeURIComponent(tok)).then(async (r) => {
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      draw(j);
+    }).catch((e) => { root.innerHTML = `<div class="card center"><h2>Not found</h2><p class="muted">${esc(e.message)}. Check the link or contact us.</p></div>`; });
+  </script>
+</body>
+</html>

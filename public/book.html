@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request a Quote</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="public">
+  <main class="public-wrap">
+    <header class="public-head">
+      <div class="brand-mark">🍸</div>
+      <h1 id="bizName">Request a Quote</h1>
+      <p class="muted" id="bizTag"></p>
+    </header>
+    <form class="card" id="inq">
+      <h2>Tell us about your event</h2>
+      <p class="muted small">We'll get back to you within one business day with availability and a custom quote.</p>
+      <div class="form-grid">
+        <div class="field"><label>Your name *</label><input name="name" required autocomplete="name"></div>
+        <div class="field"><label>Email *</label><input name="email" type="email" required autocomplete="email"></div>
+        <div class="field"><label>Phone</label><input name="phone" type="tel" autocomplete="tel"></div>
+        <div class="field"><label>Event type</label>
+          <select name="eventType"><option>Wedding</option><option>Corporate</option><option>Birthday</option><option>Private Party</option><option>Graduation</option><option>Holiday Party</option><option>Fundraiser</option><option>Festival</option><option>Other</option></select></div>
+        <div class="field"><label>Event date</label><input name="eventDate" type="date"></div>
+        <div class="field"><label>Estimated guests</label><input name="guestCount" type="number" min="1" inputmode="numeric"></div>
+        <div class="field"><label>Hours of bar service</label><input name="hours" type="number" min="1" step="0.5" inputmode="decimal"></div>
+        <div class="field"><label>Approximate budget ($)</label><input name="budget" type="number" min="0" inputmode="numeric"></div>
+        <div class="field full"><label>Venue / location</label><input name="venue" placeholder="Venue name or city"></div>
+        <div class="field full"><label>Service you're interested in</label><select name="packageId" id="pkgSel"><option value="">Not sure yet</option></select></div>
+        <div class="field full"><label>Anything else? (drink ideas, theme, questions)</label><textarea name="message" rows="4"></textarea></div>
+        <div class="hp" aria-hidden="true"><label>Website</label><input name="website_url" tabindex="-1" autocomplete="off"></div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Send request</button>
+      <p class="error" id="err"></p>
+    </form>
+    <div class="card center" id="thanks" hidden>
+      <div class="brand-mark">🥂</div>
+      <h2>Thanks — we got it!</h2>
+      <p>We'll be in touch shortly with availability and a custom quote.</p>
+    </div>
+    <div id="pkgList"></div>
+    <p class="muted small center" id="contact"></p>
+  </main>
+  <script>
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    fetch('/api/public/info').then((r) => r.json()).then((info) => {
+      document.title = 'Request a Quote · ' + info.businessName;
+      document.getElementById('bizName').textContent = info.businessName;
+      document.getElementById('bizTag').textContent = info.tagline || '';
+      const sel = document.getElementById('pkgSel');
+      for (const p of info.packages) { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); }
+      const main = info.packages.filter((p) => p.category !== 'Add-on' && p.category !== 'Staffing');
+      if (main.length) document.getElementById('pkgList').innerHTML = `<section class="card"><h3>Our services</h3><div class="pkg-grid">${main.map((p) => `<div class="pkg"><b>${esc(p.name)}</b><p class="small muted">${esc(p.description || '')}</p></div>`).join('')}</div></section>`;
+      document.getElementById('contact').innerHTML = [info.phone && `☎ ${esc(info.phone)}`, info.email && `✉ <a href="mailto:${esc(info.email)}">${esc(info.email)}</a>`, info.website && `<a href="${esc(info.website)}" target="_blank" rel="noopener">${esc(info.website)}</a>`].filter(Boolean).join(' · ');
+    }).catch(() => {});
+    const form = document.getElementById('inq');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/public/inquiry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error || 'Something went wrong');
+        form.hidden = true;
+        document.getElementById('thanks').hidden = false;
+        window.scrollTo(0, 0);
+      } catch (err) { document.getElementById('err').textContent = err.message; }
+      finally { btn.disabled = false; }
+    });
+  </script>
+</body>
+</html>

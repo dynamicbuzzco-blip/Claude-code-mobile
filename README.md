@@ -77,3 +77,13 @@ test/api.test.js       API tests
 ```
 
 The JSON-file store suits a single business with thousands of events. To scale beyond that, the `/api/c/:collection` CRUD layer is the one place to swap in Postgres or SQLite.
+
+## Hosting options
+
+| Option | Storage | How |
+|---|---|---|
+| **Vercel + Supabase** (current live deployment) | Supabase Postgres (`supabase/schema.sql`) | `vercel.json` serves `public/` and runs `api/index.js`. Set env vars `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BAROPS_STORE_SECRET` |
+| **Cloudflare Workers** | Durable Object (SQLite) | `npm run build:worker && npx wrangler deploy` (`wrangler.toml`, `src/worker.js`) |
+| **Node / Docker / Render** | `data/db.json` file | `node server.js`, `Dockerfile`, `render.yaml` |
+
+All three share the same API logic in `src/core.js`.

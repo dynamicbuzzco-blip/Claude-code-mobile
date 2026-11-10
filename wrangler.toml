@@ -1,0 +1,13 @@
+# Deploy with: npm run build:worker && npx wrangler deploy
+name = "barops"
+main = "dist/worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "DB"
+class_name = "BarOpsDB"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BarOpsDB"]

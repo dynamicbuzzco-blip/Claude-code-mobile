@@ -1,18 +1,16 @@
 // API integration tests (node --test). Uses a temp data dir and an ephemeral port.
-'use strict';
-const { test, before, after } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+import { test, before, after } from 'node:test';
+import assert from 'node:assert';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'barops-test-'));
 process.env.DATA_DIR = dir;
-const { createServer, loadDb, invoiceTotals } = require('../server.js');
+const { createServer, invoiceTotals } = await import('../server.js');
 
 let server; let base;
 before(async () => {
-  loadDb();
   server = createServer();
   await new Promise((r) => server.listen(0, r));
   base = `http://127.0.0.1:${server.address().port}`;

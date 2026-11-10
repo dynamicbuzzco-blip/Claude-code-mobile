@@ -63,7 +63,7 @@ function readRaw(req) {
 }
 
 export function createServer(store = fileStore()) {
-  const app = createApp(store, { secureCookies: process.env.SECURE_COOKIES === '1' });
+  const app = createApp(store, { secureCookies: process.env.SECURE_COOKIES === '1', setupCode: process.env.BAROPS_SETUP_CODE || '' });
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     try {

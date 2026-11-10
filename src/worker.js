@@ -26,7 +26,7 @@ export class BarOpsDB extends DurableObject {
           sql.exec('DELETE FROM chunks WHERE i >= ?', n);
         });
       },
-    }, { secureCookies: true });
+    }, { secureCookies: true, setupCode: env.BAROPS_SETUP_CODE || '' });
   }
 
   async fetch(request) {

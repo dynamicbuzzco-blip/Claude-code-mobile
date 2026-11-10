@@ -47,6 +47,7 @@ Requires Node.js 18+ (22 recommended). Data is stored in `./data/db.json`; set `
 | `PORT` | `3000` | HTTP port |
 | `DATA_DIR` | `./data` | Where `db.json` is stored. Use a persistent disk in production |
 | `SECURE_COOKIES` | unset | Set to `1` when served over HTTPS |
+| `BAROPS_SETUP_CODE` | unset | If set, creating the first owner account requires this code (recommended for public deployments) |
 
 ## Deploying online
 

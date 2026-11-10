@@ -4,7 +4,7 @@
 // version check; on a concurrent-write conflict the request is retried.
 import { createApp } from '../src/core.js';
 
-const { SUPABASE_URL, SUPABASE_ANON_KEY, BAROPS_STORE_SECRET } = process.env;
+const { SUPABASE_URL, SUPABASE_ANON_KEY, BAROPS_STORE_SECRET, BAROPS_SETUP_CODE } = process.env;
 
 async function rpc(fn, args) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     for (let attempt = 0; attempt < 4; attempt++) {
       const state = await rpc('barops_load', { p_secret: BAROPS_STORE_SECRET });
       let pending = null;
-      const app = createApp({ load: () => state.data, save: (db) => { pending = db; } }, { secureCookies: proto === 'https' });
+      const app = createApp({ load: () => state.data, save: (db) => { pending = db; } }, { secureCookies: proto === 'https', setupCode: BAROPS_SETUP_CODE || '' });
       response = await app.handle(new Request(url, { method: req.method, headers: req.headers, body }), { ip });
       if (!pending) break;
       const v = await rpc('barops_save', { p_secret: BAROPS_STORE_SECRET, p_data: pending, p_expected: state.version });

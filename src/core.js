@@ -247,11 +247,15 @@ export function createApp(store, options = {}) {
     // ---- auth
     if (parts[0] === 'auth') {
       if (parts[1] === 'status' && method === 'GET') {
-        return json(200, { needsSetup: db.users.length === 0, user: publicUser(user), businessName: db.settings.businessName });
+        return json(200, { needsSetup: db.users.length === 0, needsSetupCode: db.users.length === 0 && !!options.setupCode, user: publicUser(user), businessName: db.settings.businessName });
       }
       if (parts[1] === 'setup' && method === 'POST') {
         if (db.users.length) return fail(400, 'Setup already completed');
         const b = await readBody(request);
+        if (options.setupCode && String(b.setupCode || '').trim() !== options.setupCode) {
+          if (throttled('setup|' + (ctx.ip || ''))) return fail(429, 'Too many attempts, try again later');
+          return fail(403, 'Invalid setup code');
+        }
         if (!b.email || !b.password || String(b.password).length < 8) return fail(400, 'Email and a password of at least 8 characters are required');
         const passwordHash = await hashPassword(String(b.password));
         if (db.users.length) return fail(400, 'Setup already completed');

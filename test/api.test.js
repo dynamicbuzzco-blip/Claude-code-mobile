@@ -7,6 +7,7 @@ import path from 'node:path';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'barops-test-'));
 process.env.DATA_DIR = dir;
+process.env.BAROPS_SETUP_CODE = 'open-sesame';
 const { createServer, invoiceTotals } = await import('../server.js');
 
 let server; let base;
@@ -39,7 +40,9 @@ let staffId; let eventId; let shiftId; let quote;
 test('setup creates owner and blocks second setup', async () => {
   let r = await owner('GET', '/auth/status');
   assert.equal(r.body.needsSetup, true);
-  r = await owner('POST', '/auth/setup', { email: 'Owner@Test.com', password: 'password123', name: 'Olivia Owner', businessName: 'Test Bar Co' });
+  assert.equal(r.body.needsSetupCode, true);
+  assert.equal((await owner('POST', '/auth/setup', { email: 'a@b.com', password: 'password123', setupCode: 'nope' })).status, 403);
+  r = await owner('POST', '/auth/setup', { setupCode: 'open-sesame', email: 'Owner@Test.com', password: 'password123', name: 'Olivia Owner', businessName: 'Test Bar Co' });
   assert.equal(r.status, 200);
   assert.equal(r.body.user.role, 'owner');
   r = await anon('POST', '/auth/setup', { email: 'x@y.com', password: 'password123' });

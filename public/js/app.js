@@ -37,13 +37,14 @@ const STAFF_ROUTES = { portal, calendar, tasks, profile: { render: (el) => porta
 const root = document.getElementById('app');
 
 // ------------------------------------------------------------------ auth screens
-function authScreen({ setup, businessName }) {
+function authScreen({ setup, setupCode, businessName }) {
   root.innerHTML = `
     <div class="auth-wrap">
       <form class="auth-card" id="authForm">
         <div class="brand-mark">🍸</div>
         <h1>${setup ? 'Welcome to BarOps' : esc(businessName || 'BarOps')}</h1>
         <p class="muted">${setup ? 'Create the owner account for your mobile bar business.' : 'Sign in to your business dashboard.'}</p>
+        ${setup && setupCode ? '<div class="field"><label>Setup code</label><input name="setupCode" required autocomplete="off" placeholder="From your installer"></div>' : ''}
         ${setup ? `
           <div class="field"><label>Business name</label><input name="businessName" required placeholder="e.g. Shake & Stir Mobile Bar"></div>
           <div class="field"><label>Your name</label><input name="name" required autocomplete="name"></div>` : ''}
@@ -149,7 +150,7 @@ function render() {
 
 async function start() {
   const st = await api('GET', '/auth/status');
-  if (!st.user) return authScreen({ setup: st.needsSetup, businessName: st.businessName });
+  if (!st.user) return authScreen({ setup: st.needsSetup, setupCode: st.needsSetupCode, businessName: st.businessName });
   try {
     await loadAll();
   } catch (err) {
